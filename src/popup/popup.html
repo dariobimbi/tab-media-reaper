@@ -6,7 +6,28 @@
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
-  <!-- Filled in Task 7. -->
+  <main class="tir-card">
+    <div class="tir-eyebrow">&lt;/&gt; tab image reaper</div>
+
+    <label class="tir-field">
+      <span class="tir-label">selector</span>
+      <input id="selector" type="text" spellcheck="false" autocomplete="off" />
+    </label>
+
+    <label class="tir-field">
+      <span class="tir-label">subfolder</span>
+      <input id="subfolder" type="text" spellcheck="false" autocomplete="off" />
+    </label>
+
+    <div class="tir-headline">
+      <strong id="match-count" class="tir-grad-text">0</strong>
+      <span> of <span id="total-count">0</span> tabs match</span>
+    </div>
+
+    <button id="run" class="tir-run" type="button" disabled>Run</button>
+
+    <ul id="results" class="tir-results" aria-live="polite"></ul>
+  </main>
   <script type="module" src="popup.js"></script>
 </body>
 </html>
