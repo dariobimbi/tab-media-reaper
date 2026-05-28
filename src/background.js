@@ -1,1 +1,51 @@
-// Wired in Task 6.
+import { createEngine } from "./lib/engine.js";
+
+const DEFAULT_SELECTOR = "img";
+const DEFAULT_SUBFOLDER = "tab-image-reaper";
+
+const engine = createEngine({
+  chrome,
+  broadcast: (msg) => {
+    // No recipient — Chrome routes to any listening extension page.
+    // Catch the "no receiver" rejection that happens when the popup is closed.
+    chrome.runtime.sendMessage(msg).catch(() => {});
+  },
+});
+
+// engine.handleDownloadChanged is already wired inside createEngine().
+// Do NOT add a second downloads.onChanged listener here.
+
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  handle(msg).then(sendResponse).catch((err) => {
+    sendResponse({ error: String(err?.message || err) });
+  });
+  return true; // keep the message channel open for the async response
+});
+
+async function handle(msg) {
+  if (!msg || !msg.type) return { error: "missing type" };
+  switch (msg.type) {
+    case "scan": {
+      const { selector = DEFAULT_SELECTOR } = await chrome.storage.local.get({ selector: DEFAULT_SELECTOR });
+      const tabs = await engine.scan({ selector });
+      return { tabs };
+    }
+    case "saveConfig": {
+      const { selector, subfolder } = msg;
+      await chrome.storage.local.set({ selector, subfolder });
+      return { ok: true };
+    }
+    case "run": {
+      const { selector = DEFAULT_SELECTOR, subfolder = DEFAULT_SUBFOLDER } =
+        await chrome.storage.local.get({ selector: DEFAULT_SELECTOR, subfolder: DEFAULT_SUBFOLDER });
+      // Fire-and-forget — caller gets an ack, progress flows via broadcasts.
+      engine.runBatch({ tabIds: msg.tabIds, selector, subfolder });
+      return { ack: true };
+    }
+    case "getStatus": {
+      return engine.getState();
+    }
+    default:
+      return { error: `unknown type: ${msg.type}` };
+  }
+}
