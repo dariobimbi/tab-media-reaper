@@ -169,6 +169,7 @@ body {
 .tir-pill[data-status="inaccessible"] { background: var(--tir-highlight); box-shadow: 0 0 0 4px rgba(250,204,21,.18); }
 
 .tir-result-title {
+  grid-column: 2;
   font-size: 13px;
   color: var(--tir-fg);
   overflow: hidden;
