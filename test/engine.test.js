@@ -215,3 +215,22 @@ test("handleDownloadChanged: SW-restart, interrupted -> tab stays, record cleare
   eq(chrome._tabsRemaining(), [7]); // tab still there
   eq(chrome._session["downloads.42"], undefined); // record cleared
 });
+
+test("runBatch: chrome.downloads.download throws -> save-failed, tab left open, no session record", async () => {
+  const chrome = makeChromeShim();
+  chrome._setTab({ id: 1, url: "https://a.example/", title: "A", pinned: false });
+  chrome._setScriptResult(1, "https://a.example/photo.jpg");
+  // Force the download call itself to reject.
+  chrome.downloads.download = async () => { throw new Error("INVALID_FILENAME"); };
+
+  const engine = createEngine({ chrome, broadcast: () => {} });
+  await engine.runBatch({ tabIds: [1], selector: "img", subfolder: "tir" });
+
+  const s = engine.getState();
+  eq(s.status, "done");
+  eq(s.results[0].status, "save-failed");
+  ok(s.results[0].error.includes("INVALID_FILENAME"));
+  eq(chrome._tabsRemaining(), [1]);
+  // No session record should exist — we never got far enough to write one.
+  eq(Object.keys(chrome._session).length, 0);
+});

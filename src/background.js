@@ -1,6 +1,6 @@
 import { createEngine } from "./lib/engine.js";
 
-const DEFAULT_SELECTOR = "img";
+const DEFAULT_SELECTOR = "";
 const DEFAULT_SUBFOLDER = "tab-image-reaper";
 
 const engine = createEngine({

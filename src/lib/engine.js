@@ -78,12 +78,18 @@ export function createEngine({ chrome, broadcast }) {
       return;
     }
     const filename = filenameFromUrl(imageUrl);
-    const downloadId = await chrome.downloads.download({
-      url: imageUrl,
-      filename: `${subfolder}/${filename}`,
-      conflictAction: "uniquify",
-      saveAs: false,
-    });
+    let downloadId;
+    try {
+      downloadId = await chrome.downloads.download({
+        url: imageUrl,
+        filename: `${subfolder}/${filename}`,
+        conflictAction: "uniquify",
+        saveAs: false,
+      });
+    } catch (err) {
+      pushResult({ tabId, ...info, status: "save-failed", imageUrl, filename, error: String(err.message || err) });
+      return;
+    }
     await chrome.storage.session.set({
       [`downloads.${downloadId}`]: { downloadId, tabId, tabUrl: info.url, tabTitle: info.title },
     });

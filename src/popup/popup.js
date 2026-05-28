@@ -1,4 +1,4 @@
-const DEFAULT_SELECTOR = "img";
+const DEFAULT_SELECTOR = "";
 const DEFAULT_SUBFOLDER = "tab-image-reaper";
 
 const $selector  = document.getElementById("selector");
@@ -26,15 +26,15 @@ async function init() {
   $selector.addEventListener("change", scan);
   $run.addEventListener("click", runBatch);
 
-  chrome.runtime.onMessage.addListener(onBroadcast);
-
   // Re-attach to an in-flight run, if any.
   const status = await sendMessage({ type: "getStatus" });
   if (status && status.status === "running") {
     running = true;
-    setRunButton();
     renderResults(status.results);
+    setRunButton(status.processed, status.total);
   }
+
+  chrome.runtime.onMessage.addListener(onBroadcast);
 
   await scan();
 }
