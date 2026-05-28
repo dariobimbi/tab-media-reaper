@@ -66,7 +66,12 @@ async function runBatch() {
   running = true;
   setRunButton(0, tabIds.length);
   $results.innerHTML = "";
-  await sendMessage({ type: "run", tabIds });
+  const ack = await sendMessage({ type: "run", tabIds });
+  if (!ack || !ack.ack) {
+    // SW didn't respond — back out so the popup isn't permanently stuck.
+    running = false;
+    setRunButton();
+  }
 }
 
 function onBroadcast(msg) {
@@ -77,7 +82,9 @@ function onBroadcast(msg) {
   } else if (msg.type === "done") {
     running = false;
     setRunButton();
-    // msg.results already reflects everything appendResult rendered.
+    // Refresh scanTabs: closed tabs disappear from the list, and a popup
+    // that re-attached mid-run can now use Run again.
+    scan().catch((err) => console.error("[tir] scan failed after done", err));
   }
 }
 
