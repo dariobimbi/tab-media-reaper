@@ -3,7 +3,8 @@
   "name": "Tab Image Reaper",
   "version": "0.1.0",
   "description": "Save matching images from open tabs and close those tabs.",
-  "permissions": ["storage"],
+  "permissions": ["scripting", "downloads", "tabs", "storage"],
+  "host_permissions": ["<all_urls>"],
   "action": {
     "default_popup": "src/popup/popup.html",
     "default_title": "Tab Image Reaper"
@@ -16,5 +17,11 @@
     "16": "icons/16.png",
     "48": "icons/48.png",
     "128": "icons/128.png"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["src/lib/resolve-image.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }
