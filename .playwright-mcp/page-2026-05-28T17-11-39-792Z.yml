@@ -1,0 +1,26 @@
+- generic [active] [ref=e1]:
+  - heading "Tab Image Reaper — test results" [level=1] [ref=e2]
+  - generic [ref=e3]:
+    - heading "22 passed, 0 failed" [level=2] [ref=e4]
+    - generic [ref=e5]: "✓ filename: standard URL with .jpg"
+    - generic [ref=e6]: "✓ filename: case-insensitive extension (.PNG)"
+    - generic [ref=e7]: "✓ filename: no extension gets .jpg"
+    - generic [ref=e8]: "✓ filename: query string is stripped"
+    - generic [ref=e9]: "✓ filename: hash is stripped"
+    - generic [ref=e10]: "✓ filename: trailing slash falls back to 'image.jpg'"
+    - generic [ref=e11]: "✓ filename: data: URL falls through to 'image.jpg'"
+    - generic [ref=e12]: "✓ filename: blob: URL with UUID gets .jpg"
+    - generic [ref=e13]: "✓ filename: garbage string falls back to 'image.jpg'"
+    - generic [ref=e14]: "✓ filename: null/undefined falls back to 'image.jpg'"
+    - generic [ref=e15]: "✓ resolve: null input returns null"
+    - generic [ref=e16]: "✓ resolve: undefined input returns null"
+    - generic [ref=e17]: "✓ resolve: <img> with src returns src"
+    - generic [ref=e18]: "✓ resolve: <img> with no src returns null"
+    - generic [ref=e19]: "✓ resolve: <img> with srcset prefers currentSrc when set"
+    - generic [ref=e20]: "✓ resolve: <picture> reads inner <img>"
+    - generic [ref=e21]: "✓ resolve: <source> walks back to its <picture>'s <img>"
+    - generic [ref=e22]: "✓ resolve: <div> returns null"
+    - generic [ref=e23]: "✓ resolve: detached <source> with no parent <picture> returns null"
+    - generic [ref=e24]: "✓ scan: queries non-pinned tabs in current window, runs selector test per tab"
+    - generic [ref=e25]: "✓ scan: executeScript rejection becomes matched=false (inaccessible at preview)"
+    - generic [ref=e26]: "✓ scan: pinned tabs are excluded by the shim's query filter"

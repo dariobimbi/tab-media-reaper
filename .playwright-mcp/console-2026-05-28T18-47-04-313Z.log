@@ -1,0 +1,3 @@
+[      14ms] [ERROR] [tir] init failed TypeError: Cannot read properties of undefined (reading 'local')
+    at init (http://localhost/tab-image-reaper/src/popup/popup.js:17:36)
+    at http://localhost/tab-image-reaper/src/popup/popup.js:14:1 @ http://localhost/tab-image-reaper/src/popup/popup.js:13
