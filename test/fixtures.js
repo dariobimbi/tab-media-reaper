@@ -85,6 +85,7 @@ export function makeChromeShim() {
         get: async (key) => {
           if (key == null) return { ...session };
           if (Array.isArray(key)) return Object.fromEntries(key.map((k) => [k, session[k]]));
+          if (typeof key === "object") return Object.fromEntries(Object.keys(key).map((k) => [k, session[k] ?? key[k]]));
           return { [key]: session[key] };
         },
         set: async (obj) => { Object.assign(session, obj); },
