@@ -24,6 +24,24 @@ export const emptyImgHtml = `
     <img id="empty" alt="">
   </div>`;
 
+export const videoHtml = `
+  <div id="root">
+    <video id="vid" src="https://example.com/clip.mp4"></video>
+  </div>`;
+
+export const videoMultiSourceHtml = `
+  <div id="root">
+    <video id="vid">
+      <source src="https://example.com/clip.webm" type="video/webm">
+      <source src="https://example.com/clip.mp4" type="video/mp4">
+    </video>
+  </div>`;
+
+export const emptyVideoHtml = `
+  <div id="root">
+    <video id="empty"></video>
+  </div>`;
+
 // In-memory chrome.* shim. Tests configure it before invoking the engine.
 //
 // Helpers (underscored) let tests stage tab state, script results, and
