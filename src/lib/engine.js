@@ -6,22 +6,37 @@ export function createEngine({ chrome, broadcast }) {
   let state = { status: "idle", total: 0, processed: 0, results: [] };
   const pending = new Map(); // downloadId -> { resolve }
 
-  async function scan({ selector }) {
+  async function scan({ selector, types = ["image"] }) {
     const tabs = await chrome.tabs.query({ currentWindow: true, pinned: false });
     const out = [];
     for (const t of tabs) {
       let matched = false;
+      let type = null;
       try {
         const [{ result }] = await chrome.scripting.executeScript({
           target: { tabId: t.id },
-          func: (sel) => ({ matched: !!document.querySelector(sel) }),
-          args: [selector],
+          func: (sel, allowedTypes) => {
+            const el = document.querySelector(sel);
+            if (!el) return { matched: false };
+            const tag = el.tagName.toUpperCase();
+            let kind = null;
+            if ((tag === "IMG" || tag === "PICTURE") && allowedTypes.includes("image")) kind = "image";
+            else if (tag === "SOURCE") {
+              const parent = el.closest("picture, video");
+              if (parent && parent.tagName === "PICTURE" && allowedTypes.includes("image")) kind = "image";
+              else if (parent && parent.tagName === "VIDEO" && allowedTypes.includes("video")) kind = "video";
+            } else if (tag === "VIDEO" && allowedTypes.includes("video")) kind = "video";
+            return { matched: kind !== null, type: kind };
+          },
+          args: [selector, types],
         });
         matched = !!(result && result.matched);
+        type = (result && result.type) || null;
       } catch {
         matched = false;
+        type = null;
       }
-      out.push({ tabId: t.id, matched, url: t.url, title: t.title });
+      out.push({ tabId: t.id, matched, type, url: t.url, title: t.title });
     }
     return out;
   }

@@ -6,15 +6,15 @@ test("scan: queries non-pinned tabs in current window, runs selector test per ta
   const chrome = makeChromeShim();
   chrome._setTab({ id: 1, url: "https://a.example/", title: "A", pinned: false });
   chrome._setTab({ id: 2, url: "https://b.example/", title: "B", pinned: false });
-  chrome._setScriptResult(1, { matched: true });
+  chrome._setScriptResult(1, { matched: true, type: "image" });
   chrome._setScriptResult(2, { matched: false });
 
   const engine = createEngine({ chrome, broadcast: () => {} });
-  const tabs = await engine.scan({ selector: "img.hero" });
+  const tabs = await engine.scan({ selector: "img.hero", types: ["image"] });
 
   eq(tabs, [
-    { tabId: 1, matched: true,  url: "https://a.example/", title: "A" },
-    { tabId: 2, matched: false, url: "https://b.example/", title: "B" },
+    { tabId: 1, matched: true,  type: "image", url: "https://a.example/", title: "A" },
+    { tabId: 2, matched: false, type: null,    url: "https://b.example/", title: "B" },
   ]);
 });
 
@@ -24,21 +24,22 @@ test("scan: executeScript rejection becomes matched=false (inaccessible at previ
   chrome._setScriptThrows(1, new Error("Cannot access contents of url"));
 
   const engine = createEngine({ chrome, broadcast: () => {} });
-  const tabs = await engine.scan({ selector: "img" });
+  const tabs = await engine.scan({ selector: "img", types: ["image"] });
 
   eq(tabs.length, 1);
   eq(tabs[0].matched, false);
+  eq(tabs[0].type, null);
 });
 
 test("scan: pinned tabs are excluded by the shim's query filter", async () => {
   const chrome = makeChromeShim();
   chrome._setTab({ id: 1, url: "https://a.example/", title: "A", pinned: false });
   chrome._setTab({ id: 2, url: "https://b.example/", title: "B", pinned: true });
-  chrome._setScriptResult(1, { matched: true });
+  chrome._setScriptResult(1, { matched: true, type: "image" });
   // tab 2 must never be invoked — no script staged.
 
   const engine = createEngine({ chrome, broadcast: () => {} });
-  const tabs = await engine.scan({ selector: "img" });
+  const tabs = await engine.scan({ selector: "img", types: ["image"] });
 
   eq(tabs.map((t) => t.tabId), [1]);
 });
@@ -233,4 +234,63 @@ test("runBatch: chrome.downloads.download throws -> save-failed, tab left open, 
   eq(chrome._tabsRemaining(), [1]);
   // No session record should exist — we never got far enough to write one.
   eq(Object.keys(chrome._session).length, 0);
+});
+
+test("scan: selector matches <img>, Images on -> matched=true, type=image", async () => {
+  const chrome = makeChromeShim();
+  chrome._setTab({ id: 1, url: "https://a/", title: "A", pinned: false });
+  chrome._setScriptResult(1, { matched: true, type: "image" });
+  const engine = createEngine({ chrome, broadcast: () => {} });
+  const tabs = await engine.scan({ selector: "img", types: ["image"] });
+  eq(tabs[0].matched, true);
+  eq(tabs[0].type, "image");
+});
+
+test("scan: selector matches <img>, Images off -> matched=false (collapsed to null)", async () => {
+  const chrome = makeChromeShim();
+  chrome._setTab({ id: 1, url: "https://a/", title: "A", pinned: false });
+  // With Images off, the probe finds the IMG but allowedTypes.includes("image")
+  // is false, so kind stays null and the probe returns { matched: false }.
+  chrome._setScriptResult(1, { matched: false });
+  const engine = createEngine({ chrome, broadcast: () => {} });
+  const tabs = await engine.scan({ selector: "img", types: ["video"] });
+  eq(tabs[0].matched, false);
+  eq(tabs[0].type, null);
+});
+
+test("scan: selector matches <video>, Videos off -> matched=false", async () => {
+  const chrome = makeChromeShim();
+  chrome._setTab({ id: 1, url: "https://a/", title: "A", pinned: false });
+  chrome._setScriptResult(1, { matched: false });
+  const engine = createEngine({ chrome, broadcast: () => {} });
+  const tabs = await engine.scan({ selector: "video", types: ["image"] });
+  eq(tabs[0].matched, false);
+});
+
+test("scan: selector matches <video>, Videos on -> matched=true, type=video", async () => {
+  const chrome = makeChromeShim();
+  chrome._setTab({ id: 1, url: "https://a/", title: "A", pinned: false });
+  chrome._setScriptResult(1, { matched: true, type: "video" });
+  const engine = createEngine({ chrome, broadcast: () => {} });
+  const tabs = await engine.scan({ selector: "video", types: ["video"] });
+  eq(tabs[0].matched, true);
+  eq(tabs[0].type, "video");
+});
+
+test("scan: selector matches <source> inside <picture>, Images on, Videos off -> type=image", async () => {
+  const chrome = makeChromeShim();
+  chrome._setTab({ id: 1, url: "https://a/", title: "A", pinned: false });
+  chrome._setScriptResult(1, { matched: true, type: "image" });
+  const engine = createEngine({ chrome, broadcast: () => {} });
+  const tabs = await engine.scan({ selector: "source", types: ["image"] });
+  eq(tabs[0].type, "image");
+});
+
+test("scan: selector matches <source> inside <video>, Images off, Videos on -> type=video", async () => {
+  const chrome = makeChromeShim();
+  chrome._setTab({ id: 1, url: "https://a/", title: "A", pinned: false });
+  chrome._setScriptResult(1, { matched: true, type: "video" });
+  const engine = createEngine({ chrome, broadcast: () => {} });
+  const tabs = await engine.scan({ selector: "source", types: ["video"] });
+  eq(tabs[0].type, "video");
 });
