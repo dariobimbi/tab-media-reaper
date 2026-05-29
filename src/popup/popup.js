@@ -1,29 +1,44 @@
 const DEFAULT_SELECTOR = "";
-const DEFAULT_SUBFOLDER = "tab-image-reaper";
+const DEFAULT_SUBFOLDER = "tab-media-reaper";
+const DEFAULT_INCLUDE_IMAGES = true;
+const DEFAULT_INCLUDE_VIDEOS = false;
+const DEFAULT_CLOSE_TABS = true;
 
-const $selector  = document.getElementById("selector");
-const $subfolder = document.getElementById("subfolder");
-const $match     = document.getElementById("match-count");
-const $total     = document.getElementById("total-count");
-const $run       = document.getElementById("run");
-const $results   = document.getElementById("results");
+const $selector       = document.getElementById("selector");
+const $subfolder      = document.getElementById("subfolder");
+const $includeImages  = document.getElementById("include-images");
+const $includeVideos  = document.getElementById("include-videos");
+const $closeTabs      = document.getElementById("close-tabs");
+const $match          = document.getElementById("match-count");
+const $total          = document.getElementById("total-count");
+const $run            = document.getElementById("run");
+const $results        = document.getElementById("results");
 
-let scanTabs = []; // last scan result; informs which tabIds to send on Run.
+let scanTabs = [];
 let running  = false;
 
-init().catch((err) => console.error("[tir] init failed", err));
+init().catch((err) => console.error("[tmr] init failed", err));
 
 async function init() {
   const cfg = await chrome.storage.local.get({
     selector: DEFAULT_SELECTOR,
     subfolder: DEFAULT_SUBFOLDER,
+    includeImages: DEFAULT_INCLUDE_IMAGES,
+    includeVideos: DEFAULT_INCLUDE_VIDEOS,
+    closeTabs: DEFAULT_CLOSE_TABS,
   });
-  $selector.value  = cfg.selector;
-  $subfolder.value = cfg.subfolder;
+  $selector.value        = cfg.selector;
+  $subfolder.value       = cfg.subfolder;
+  $includeImages.checked = cfg.includeImages;
+  $includeVideos.checked = cfg.includeVideos;
+  $closeTabs.checked     = cfg.closeTabs;
 
   $selector.addEventListener("blur", saveConfig);
   $subfolder.addEventListener("blur", saveConfig);
   $selector.addEventListener("change", scan);
+  $includeImages.addEventListener("change", onTypeToggle);
+  $includeVideos.addEventListener("change", onTypeToggle);
+  $closeTabs.addEventListener("change", saveConfig);  // no rescan; doesn't affect what matches
   $run.addEventListener("click", runBatch);
 
   // Re-attach to an in-flight run, if any.
@@ -39,11 +54,19 @@ async function init() {
   await scan();
 }
 
+async function onTypeToggle() {
+  await saveConfig();
+  await scan();
+}
+
 async function saveConfig() {
   await sendMessage({
     type: "saveConfig",
-    selector: $selector.value || DEFAULT_SELECTOR,
-    subfolder: $subfolder.value || DEFAULT_SUBFOLDER,
+    selector:       $selector.value || DEFAULT_SELECTOR,
+    subfolder:      $subfolder.value || DEFAULT_SUBFOLDER,
+    includeImages:  $includeImages.checked,
+    includeVideos:  $includeVideos.checked,
+    closeTabs:      $closeTabs.checked,
   });
 }
 
@@ -55,7 +78,8 @@ async function scan() {
   const matched = scanTabs.filter((t) => t.matched).length;
   $match.textContent = String(matched);
   $total.textContent = String(scanTabs.length);
-  $run.disabled = matched === 0;
+  const anyTypeOn = $includeImages.checked || $includeVideos.checked;
+  $run.disabled = matched === 0 || !anyTypeOn || !$selector.value;
 }
 
 async function runBatch() {
@@ -68,7 +92,6 @@ async function runBatch() {
   $results.innerHTML = "";
   const ack = await sendMessage({ type: "run", tabIds });
   if (!ack || !ack.ack) {
-    // SW didn't respond — back out so the popup isn't permanently stuck.
     running = false;
     setRunButton();
   }
@@ -82,9 +105,7 @@ function onBroadcast(msg) {
   } else if (msg.type === "done") {
     running = false;
     setRunButton();
-    // Refresh scanTabs: closed tabs disappear from the list, and a popup
-    // that re-attached mid-run can now use Run again.
-    scan().catch((err) => console.error("[tir] scan failed after done", err));
+    scan().catch((err) => console.error("[tmr] scan failed after done", err));
   }
 }
 
@@ -95,7 +116,8 @@ function setRunButton(processed, total) {
   } else {
     $run.textContent = "Run";
     const matched = scanTabs.filter((t) => t.matched).length;
-    $run.disabled = running || matched === 0;
+    const anyTypeOn = $includeImages.checked || $includeVideos.checked;
+    $run.disabled = running || matched === 0 || !anyTypeOn || !$selector.value;
   }
 }
 
@@ -112,7 +134,7 @@ function appendResult(r) {
   const pill = document.createElement("span");
   pill.className = "tir-pill";
   pill.dataset.status = r.status;
-  pill.title = labelFor(r.status); // status as accessible tooltip
+  pill.title = labelFor(r.status);
   li.appendChild(pill);
 
   const title = document.createElement("div");
@@ -148,7 +170,7 @@ function labelFor(status) {
   switch (status) {
     case "saved":         return "Saved";
     case "save-failed":   return "Save failed";
-    case "no-image-url":  return "No image URL";
+    case "no-media-url":  return "No media URL";
     case "inaccessible":  return "Inaccessible";
     default:              return status;
   }
@@ -157,8 +179,6 @@ function labelFor(status) {
 function sendMessage(msg) {
   return new Promise((resolve) => {
     chrome.runtime.sendMessage(msg, (resp) => {
-      // Discard chrome.runtime.lastError to avoid console spam if the SW
-      // is briefly down — the next user action will retry.
       void chrome.runtime.lastError;
       resolve(resp);
     });
