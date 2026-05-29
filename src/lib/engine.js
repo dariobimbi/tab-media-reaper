@@ -1,7 +1,5 @@
 import { filenameFromUrl } from "./filename.js";
 
-const RESOLVE_IMAGE_PATH = "src/lib/resolve-image.js";
-
 export function createEngine({ chrome, broadcast }) {
   let state = { status: "idle", total: 0, processed: 0, results: [] };
   const pending = new Map(); // downloadId -> { resolve }
@@ -41,21 +39,38 @@ export function createEngine({ chrome, broadcast }) {
     return out;
   }
 
-  async function extractImageUrl(tabId, selector) {
-    // In real Chrome, executeScript runs the injected function in the page.
-    // The function dynamically imports resolve-image.js (declared in
-    // web_accessible_resources) and applies it to the matched element.
-    // The shim doesn't actually run the function — it returns the pre-staged
-    // value from _setScriptResult.
+  async function extractMedia(tabId, selector, types) {
+    // In real Chrome, this function body runs in the page. The shim's
+    // executeScript ignores `func` and returns whatever was staged via
+    // _setScriptResult. Tests stage either { url, type } or null.
     const [{ result }] = await chrome.scripting.executeScript({
       target: { tabId },
-      func: async (sel, resolveImagePath) => {
-        const url = chrome.runtime.getURL(resolveImagePath);
-        const { resolveImageUrl } = await import(url);
+      func: async (sel, allowedTypes) => {
         const el = document.querySelector(sel);
-        return resolveImageUrl(el);
+        if (!el) return null;
+        const tag = el.tagName.toUpperCase();
+        let type = null;
+        if ((tag === "IMG" || tag === "PICTURE") && allowedTypes.includes("image")) type = "image";
+        else if (tag === "SOURCE") {
+          const parent = el.closest("picture, video");
+          if (parent && parent.tagName === "PICTURE" && allowedTypes.includes("image")) type = "image";
+          else if (parent && parent.tagName === "VIDEO" && allowedTypes.includes("video")) type = "video";
+        } else if (tag === "VIDEO" && allowedTypes.includes("video")) type = "video";
+        if (!type) return null;
+        const moduleUrl = chrome.runtime.getURL(
+          type === "image" ? "src/lib/resolve-image.js" : "src/lib/resolve-video.js"
+        );
+        let url = null;
+        if (type === "image") {
+          const { resolveImageUrl } = await import(moduleUrl);
+          url = resolveImageUrl(el);
+        } else {
+          const { resolveVideoUrl } = await import(moduleUrl);
+          url = resolveVideoUrl(el);
+        }
+        return url ? { url, type } : null;
       },
-      args: [selector, RESOLVE_IMAGE_PATH],
+      args: [selector, types],
     });
     return result;
   }
@@ -79,19 +94,20 @@ export function createEngine({ chrome, broadcast }) {
     try { broadcast(msg); } catch { /* popup may not be listening */ }
   }
 
-  async function processTab(tabId, selector, subfolder) {
+  async function processTab(tabId, selector, types, subfolder, closeTabs) {
     const info = await tabInfo(tabId);
-    let mediaUrl = null;
+    let extracted = null;
     try {
-      mediaUrl = await extractImageUrl(tabId, selector);
+      extracted = await extractMedia(tabId, selector, types);
     } catch (err) {
       pushResult({ tabId, ...info, status: "inaccessible", error: String(err.message || err) });
       return;
     }
-    if (!mediaUrl) {
-      pushResult({ tabId, ...info, status: "no-media-url" });
+    if (!extracted || !extracted.url) {
+      pushResult({ tabId, ...info, type: extracted?.type || null, status: "no-media-url" });
       return;
     }
+    const { url: mediaUrl, type } = extracted;
     const filename = filenameFromUrl(mediaUrl);
     let downloadId;
     try {
@@ -102,11 +118,17 @@ export function createEngine({ chrome, broadcast }) {
         saveAs: false,
       });
     } catch (err) {
-      pushResult({ tabId, ...info, status: "save-failed", mediaUrl, filename, error: String(err.message || err) });
+      pushResult({ tabId, ...info, type, status: "save-failed", mediaUrl, filename, error: String(err.message || err) });
       return;
     }
     await chrome.storage.session.set({
-      [`downloads.${downloadId}`]: { downloadId, tabId, tabUrl: info.url, tabTitle: info.title },
+      [`downloads.${downloadId}`]: {
+        downloadId,
+        tabId,
+        tabUrl: info.url,
+        tabTitle: info.title,
+        closeTabs,  // snapshot at batch start (spec §5.4)
+      },
     });
 
     const outcome = await new Promise((resolve) => {
@@ -116,17 +138,19 @@ export function createEngine({ chrome, broadcast }) {
     await chrome.storage.session.remove(`downloads.${downloadId}`);
 
     if (outcome.ok) {
-      try { await chrome.tabs.remove(tabId); } catch { /* tab already gone */ }
-      pushResult({ tabId, ...info, status: "saved", mediaUrl, filename });
+      if (closeTabs) {
+        try { await chrome.tabs.remove(tabId); } catch { /* tab already gone */ }
+      }
+      pushResult({ tabId, ...info, type, status: "saved", mediaUrl, filename });
     } else {
-      pushResult({ tabId, ...info, status: "save-failed", mediaUrl, filename, error: outcome.error });
+      pushResult({ tabId, ...info, type, status: "save-failed", mediaUrl, filename, error: outcome.error });
     }
   }
 
-  async function runBatch({ tabIds, selector, subfolder }) {
+  async function runBatch({ tabIds, selector, subfolder, types = ["image"], closeTabs = true }) {
     state = { status: "running", total: tabIds.length, processed: 0, results: [] };
     for (const tabId of tabIds) {
-      await processTab(tabId, selector, subfolder);
+      await processTab(tabId, selector, types, subfolder, closeTabs);
     }
     state.status = "done";
     safeBroadcast({ type: "done", results: state.results });
@@ -150,7 +174,7 @@ export function createEngine({ chrome, broadcast }) {
     const key = `downloads.${id}`;
     const rec = (await chrome.storage.session.get(key))[key];
     if (!rec) return;
-    if (current === "complete") {
+    if (current === "complete" && rec.closeTabs) {
       try { await chrome.tabs.remove(rec.tabId); } catch { /* gone */ }
     }
     await chrome.storage.session.remove(key);

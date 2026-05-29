@@ -49,7 +49,7 @@ function asyncTick() { return new Promise((r) => setTimeout(r, 0)); }
 test("runBatch: single tab, image resolves, download completes -> saved + tab closed", async () => {
   const chrome = makeChromeShim();
   chrome._setTab({ id: 1, url: "https://a.example/", title: "A", pinned: false });
-  chrome._setScriptResult(1, "https://a.example/photo.jpg");
+  chrome._setScriptResult(1, { url: "https://a.example/photo.jpg", type: "image" });
 
   const engine = createEngine({ chrome, broadcast: () => {} });
   const runPromise = engine.runBatch({
@@ -65,6 +65,7 @@ test("runBatch: single tab, image resolves, download completes -> saved + tab cl
   eq(s.status, "done");
   eq(s.results.length, 1);
   eq(s.results[0].status, "saved");
+  eq(s.results[0].type, "image");
   eq(s.results[0].filename, "photo.jpg");
   eq(s.results[0].url, "https://a.example/");   // url+title come from tabs.get
   eq(s.results[0].title, "A");
@@ -104,7 +105,7 @@ test("runBatch: extractor throws -> inaccessible, tab left open", async () => {
 test("runBatch: download interrupted -> save-failed, tab left open", async () => {
   const chrome = makeChromeShim();
   chrome._setTab({ id: 1, url: "https://a.example/", title: "A", pinned: false });
-  chrome._setScriptResult(1, "https://a.example/photo.jpg");
+  chrome._setScriptResult(1, { url: "https://a.example/photo.jpg", type: "image" });
 
   const engine = createEngine({ chrome, broadcast: () => {} });
   const runPromise = engine.runBatch({ tabIds: [1], selector: "img", subfolder: "tir" });
@@ -122,8 +123,8 @@ test("runBatch: serial — second tab waits for first download to settle", async
   const chrome = makeChromeShim();
   chrome._setTab({ id: 1, url: "https://a.example/", title: "A", pinned: false });
   chrome._setTab({ id: 2, url: "https://b.example/", title: "B", pinned: false });
-  chrome._setScriptResult(1, "https://a.example/a.jpg");
-  chrome._setScriptResult(2, "https://b.example/b.jpg");
+  chrome._setScriptResult(1, { url: "https://a.example/a.jpg", type: "image" });
+  chrome._setScriptResult(2, { url: "https://b.example/b.jpg", type: "image" });
 
   const engine = createEngine({ chrome, broadcast: () => {} });
   const runPromise = engine.runBatch({ tabIds: [1, 2], selector: "img", subfolder: "tir" });
@@ -148,7 +149,7 @@ test("runBatch: serial — second tab waits for first download to settle", async
 test("runBatch: emits progress broadcast after each tab", async () => {
   const chrome = makeChromeShim();
   chrome._setTab({ id: 1, url: "https://a.example/", title: "A", pinned: false });
-  chrome._setScriptResult(1, "https://a.example/photo.jpg");
+  chrome._setScriptResult(1, { url: "https://a.example/photo.jpg", type: "image" });
 
   const broadcasts = [];
   const engine = createEngine({ chrome, broadcast: (m) => broadcasts.push(m) });
@@ -167,7 +168,7 @@ test("runBatch: emits progress broadcast after each tab", async () => {
 test("runBatch: writes a session record per download and clears it on settle", async () => {
   const chrome = makeChromeShim();
   chrome._setTab({ id: 1, url: "https://a.example/", title: "A", pinned: false });
-  chrome._setScriptResult(1, "https://a.example/photo.jpg");
+  chrome._setScriptResult(1, { url: "https://a.example/photo.jpg", type: "image" });
 
   const engine = createEngine({ chrome, broadcast: () => {} });
   const runPromise = engine.runBatch({ tabIds: [1], selector: "img", subfolder: "tir" });
@@ -191,7 +192,7 @@ test("handleDownloadChanged: SW-restart recovery — uses session record to clos
   const chrome = makeChromeShim();
   chrome._setTab({ id: 7, url: "https://x.example/", title: "X", pinned: false });
   await chrome.storage.session.set({
-    "downloads.42": { downloadId: 42, tabId: 7, tabUrl: "https://x.example/", tabTitle: "X" },
+    "downloads.42": { downloadId: 42, tabId: 7, tabUrl: "https://x.example/", tabTitle: "X", closeTabs: true },
   });
 
   const engine = createEngine({ chrome, broadcast: () => {} });
@@ -220,7 +221,7 @@ test("handleDownloadChanged: SW-restart, interrupted -> tab stays, record cleare
 test("runBatch: chrome.downloads.download throws -> save-failed, tab left open, no session record", async () => {
   const chrome = makeChromeShim();
   chrome._setTab({ id: 1, url: "https://a.example/", title: "A", pinned: false });
-  chrome._setScriptResult(1, "https://a.example/photo.jpg");
+  chrome._setScriptResult(1, { url: "https://a.example/photo.jpg", type: "image" });
   // Force the download call itself to reject.
   chrome.downloads.download = async () => { throw new Error("INVALID_FILENAME"); };
 
@@ -293,4 +294,61 @@ test("scan: selector matches <source> inside <video>, Images off, Videos on -> t
   const engine = createEngine({ chrome, broadcast: () => {} });
   const tabs = await engine.scan({ selector: "source", types: ["video"] });
   eq(tabs[0].type, "video");
+});
+
+test("runBatch: saved with closeTabs=true -> tab closed", async () => {
+  const chrome = makeChromeShim();
+  chrome._setTab({ id: 1, url: "https://a/", title: "A", pinned: false });
+  chrome._setScriptResult(1, { url: "https://a/photo.jpg", type: "image" });
+  const engine = createEngine({ chrome, broadcast: () => {} });
+  const p = engine.runBatch({ tabIds: [1], selector: "img", subfolder: "tmr", types: ["image"], closeTabs: true });
+  await new Promise((r) => setTimeout(r, 0));
+  chrome._fireDownloadComplete(1);
+  await p;
+  eq(engine.getState().results[0].status, "saved");
+  eq(chrome._tabsRemaining(), []);
+});
+
+test("runBatch: saved with closeTabs=false -> tab stays open", async () => {
+  const chrome = makeChromeShim();
+  chrome._setTab({ id: 1, url: "https://a/", title: "A", pinned: false });
+  chrome._setScriptResult(1, { url: "https://a/photo.jpg", type: "image" });
+  const engine = createEngine({ chrome, broadcast: () => {} });
+  const p = engine.runBatch({ tabIds: [1], selector: "img", subfolder: "tmr", types: ["image"], closeTabs: false });
+  await new Promise((r) => setTimeout(r, 0));
+  chrome._fireDownloadComplete(1);
+  await p;
+  eq(engine.getState().results[0].status, "saved");
+  eq(chrome._tabsRemaining(), [1]);
+});
+
+test("runBatch: video extraction -> downloaded with type=video and mp4 filename", async () => {
+  const chrome = makeChromeShim();
+  chrome._setTab({ id: 1, url: "https://a/", title: "A", pinned: false });
+  chrome._setScriptResult(1, { url: "https://a/clip.mp4", type: "video" });
+  const engine = createEngine({ chrome, broadcast: () => {} });
+  const p = engine.runBatch({ tabIds: [1], selector: "video", subfolder: "tmr", types: ["video"], closeTabs: true });
+  await new Promise((r) => setTimeout(r, 0));
+  chrome._fireDownloadComplete(1);
+  await p;
+  const r = engine.getState().results[0];
+  eq(r.status, "saved");
+  eq(r.type, "video");
+  eq(r.filename, "clip.mp4");
+  eq(chrome._downloads[0].filename, "tmr/clip.mp4");
+});
+
+test("handleDownloadChanged: SW-restart recovery honors closeTabs=false snapshot", async () => {
+  // Simulate the SW restarting between download issuance and the
+  // onChanged event. The session record has closeTabs: false; recovery
+  // must NOT close the tab even though the download completed.
+  const chrome = makeChromeShim();
+  chrome._setTab({ id: 7, url: "https://x/", title: "X", pinned: false });
+  await chrome.storage.session.set({
+    "downloads.42": { downloadId: 42, tabId: 7, tabUrl: "https://x/", tabTitle: "X", closeTabs: false },
+  });
+  const engine = createEngine({ chrome, broadcast: () => {} });
+  await engine.handleDownloadChanged({ id: 42, state: { current: "complete" } });
+  eq(chrome._tabsRemaining(), [7]); // tab NOT closed because closeTabs=false
+  eq(chrome._session["downloads.42"], undefined); // record still cleared
 });
