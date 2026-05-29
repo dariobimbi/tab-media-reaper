@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Tab Image Reaper</title>
+  <title>Tab Media Reaper</title>
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
   <main class="tir-card">
-    <div class="tir-eyebrow">&lt;/&gt; tab image reaper</div>
+    <div class="tir-eyebrow">&lt;/&gt; tab media reaper</div>
 
     <label class="tir-field">
       <span class="tir-label">selector</span>
@@ -16,7 +16,29 @@
 
     <label class="tir-field">
       <span class="tir-label">subfolder</span>
-      <input id="subfolder" type="text" spellcheck="false" autocomplete="off" placeholder="tab-image-reaper" />
+      <input id="subfolder" type="text" spellcheck="false" autocomplete="off" placeholder="tab-media-reaper" />
+    </label>
+
+    <div class="tir-field">
+      <span class="tir-label">media types</span>
+      <div class="tir-toggles">
+        <label class="tir-check">
+          <input id="include-images" type="checkbox" />
+          <span class="tir-check-box"></span>
+          <span class="tir-check-text">Images</span>
+        </label>
+        <label class="tir-check">
+          <input id="include-videos" type="checkbox" />
+          <span class="tir-check-box"></span>
+          <span class="tir-check-text">Videos</span>
+        </label>
+      </div>
+    </div>
+
+    <label class="tir-check tir-check-block">
+      <input id="close-tabs" type="checkbox" />
+      <span class="tir-check-box"></span>
+      <span class="tir-check-text">Close tabs after saving</span>
     </label>
 
     <div class="tir-headline">
