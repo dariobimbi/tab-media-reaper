@@ -66,28 +66,28 @@ export function createEngine({ chrome, broadcast }) {
 
   async function processTab(tabId, selector, subfolder) {
     const info = await tabInfo(tabId);
-    let imageUrl = null;
+    let mediaUrl = null;
     try {
-      imageUrl = await extractImageUrl(tabId, selector);
+      mediaUrl = await extractImageUrl(tabId, selector);
     } catch (err) {
       pushResult({ tabId, ...info, status: "inaccessible", error: String(err.message || err) });
       return;
     }
-    if (!imageUrl) {
-      pushResult({ tabId, ...info, status: "no-image-url" });
+    if (!mediaUrl) {
+      pushResult({ tabId, ...info, status: "no-media-url" });
       return;
     }
-    const filename = filenameFromUrl(imageUrl);
+    const filename = filenameFromUrl(mediaUrl);
     let downloadId;
     try {
       downloadId = await chrome.downloads.download({
-        url: imageUrl,
+        url: mediaUrl,
         filename: `${subfolder}/${filename}`,
         conflictAction: "uniquify",
         saveAs: false,
       });
     } catch (err) {
-      pushResult({ tabId, ...info, status: "save-failed", imageUrl, filename, error: String(err.message || err) });
+      pushResult({ tabId, ...info, status: "save-failed", mediaUrl, filename, error: String(err.message || err) });
       return;
     }
     await chrome.storage.session.set({
@@ -102,9 +102,9 @@ export function createEngine({ chrome, broadcast }) {
 
     if (outcome.ok) {
       try { await chrome.tabs.remove(tabId); } catch { /* tab already gone */ }
-      pushResult({ tabId, ...info, status: "saved", imageUrl, filename });
+      pushResult({ tabId, ...info, status: "saved", mediaUrl, filename });
     } else {
-      pushResult({ tabId, ...info, status: "save-failed", imageUrl, filename, error: outcome.error });
+      pushResult({ tabId, ...info, status: "save-failed", mediaUrl, filename, error: outcome.error });
     }
   }
 

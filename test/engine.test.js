@@ -72,7 +72,7 @@ test("runBatch: single tab, image resolves, download completes -> saved + tab cl
   eq(chrome._downloads[0].conflictAction, "uniquify");
 });
 
-test("runBatch: extractor returns null -> no-image-url, tab left open, no download", async () => {
+test("runBatch: extractor returns null -> no-media-url, tab left open, no download", async () => {
   const chrome = makeChromeShim();
   chrome._setTab({ id: 1, url: "https://a.example/", title: "A", pinned: false });
   chrome._setScriptResult(1, null);
@@ -81,7 +81,7 @@ test("runBatch: extractor returns null -> no-image-url, tab left open, no downlo
   await engine.runBatch({ tabIds: [1], selector: "div", subfolder: "tir" });
 
   const s = engine.getState();
-  eq(s.results[0].status, "no-image-url");
+  eq(s.results[0].status, "no-media-url");
   eq(chrome._tabsRemaining(), [1]); // tab remains
   eq(chrome._downloads.length, 0);
 });
