@@ -33,3 +33,12 @@ test("filename: null/undefined falls back to 'image.jpg'", () => {
   eq(filenameFromUrl(null), "image.jpg");
   eq(filenameFromUrl(undefined), "image.jpg");
 });
+test("filename: .mp4 video URL -> leaf with .mp4", () => {
+  eq(filenameFromUrl("https://cdn.example/clip.mp4"), "clip.mp4");
+});
+test("filename: .webm video URL -> leaf with .webm", () => {
+  eq(filenameFromUrl("https://cdn.example/clip.webm"), "clip.webm");
+});
+test("filename: video URL with query parameters -> clean extension", () => {
+  eq(filenameFromUrl("https://cdn.example/v/sample.mp4?token=abc&expires=123"), "sample.mp4");
+});
