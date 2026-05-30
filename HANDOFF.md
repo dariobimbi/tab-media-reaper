@@ -1,3 +1,7 @@
+> **Historical document.** This handoff describes the phase-1 starting state.
+> Phase 2 has shipped; see [README.md](README.md) and the phase-2 spec/plan
+> for current state.
+
 # Handoff — Tab Image Reaper
 
 **Date:** 2026-05-28
@@ -47,7 +51,7 @@ mirrors that style.
 
 | Thing | Path |
 |---|---|
-| Project root | `c:\wamp64\www\tab-image-reaper` |
+| Project root | `c:\wamp64\www\tab-media-reaper` (folder rename deferred; was `tab-image-reaper`) |
 | Design spec (the source of truth) | `docs/superpowers/specs/2026-05-28-tab-image-reaper-design.md` |
 | Git | Initialized, branch `main`, root commit `3be5bf2`. No remote. |
 | Reference implementation to study | `c:\wamp64\www\bimbi-stocker` (Dario's other MV3 extension — same patterns) |
@@ -90,7 +94,7 @@ These were chosen via explicit Q&A — push back only if the user does:
 ## Gotchas you'll hit otherwise
 
 - **`file://` blocks ES module imports in Chrome.** Tests must be served
-  over HTTP — the URL is `http://localhost/tab-image-reaper/test/test.html`
+  over HTTP — the URL is `http://localhost/tab-media-reaper/test/test.html`
   (WAMP serves `c:\wamp64\www\` at `http://localhost/`).
 - **Chrome's extension module cache is sticky.** When iterating on
   `src/lib/*.js` files imported dynamically via `chrome.runtime.getURL`,
@@ -113,7 +117,7 @@ These were chosen via explicit Q&A — push back only if the user does:
 The user's persistent memory (in
 `C:\Users\dario\.claude\projects\c--wamp64-www-bimbi-stocker\memory\`) is
 scoped to the `bimbi-stocker` directory. When working from
-`tab-image-reaper`, those memories are NOT auto-loaded.
+`tab-media-reaper`, those memories are NOT auto-loaded.
 
 The relevant facts have been inlined into this handoff and into the spec.
 If you need more context, the bimbi-stocker project is right next door —
@@ -145,3 +149,5 @@ Something brief like:
 > Picked up the tab-image-reaper handoff. The spec is at
 > `docs/superpowers/specs/2026-05-28-tab-image-reaper-design.md`. Have
 > you reviewed it? Any changes before I run writing-plans?
+>
+> *(Note: this handoff is historical — phase 2 has shipped. See README.md for current state.)*
