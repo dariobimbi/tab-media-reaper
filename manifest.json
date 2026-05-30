@@ -1,13 +1,13 @@
 {
   "manifest_version": 3,
-  "name": "Tab Image Reaper",
-  "version": "0.1.0",
-  "description": "Save matching images from open tabs and close those tabs.",
+  "name": "Tab Media Reaper",
+  "version": "0.2.0",
+  "description": "Save matching images and videos from open tabs and close those tabs.",
   "permissions": ["scripting", "downloads", "tabs", "storage"],
   "host_permissions": ["<all_urls>"],
   "action": {
     "default_popup": "src/popup/popup.html",
-    "default_title": "Tab Image Reaper"
+    "default_title": "Tab Media Reaper"
   },
   "background": {
     "service_worker": "src/background.js",
@@ -20,7 +20,10 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["src/lib/resolve-image.js"],
+      "resources": [
+        "src/lib/resolve-image.js",
+        "src/lib/resolve-video.js"
+      ],
       "matches": ["<all_urls>"]
     }
   ]
