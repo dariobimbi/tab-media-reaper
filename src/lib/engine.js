@@ -100,7 +100,7 @@ export function createEngine({ chrome, broadcast }) {
     try {
       extracted = await extractMedia(tabId, selector, types);
     } catch (err) {
-      pushResult({ tabId, ...info, status: "inaccessible", error: String(err.message || err) });
+      pushResult({ tabId, ...info, type: null, status: "inaccessible", error: String(err.message || err) });
       return;
     }
     if (!extracted || !extracted.url) {
