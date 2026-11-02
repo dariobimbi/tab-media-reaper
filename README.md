@@ -9,13 +9,13 @@ Phase 2 of the project — replaces the original `tab-image-reaper` with
 support for `<video>` / `<source>`-in-`<video>` plus user toggles for
 which media types to grab and whether to close tabs after saving.
 
-Mirrors the patterns of [bimbi-stocker](../bimbi-stocker): native ES
+Mirrors the patterns of bimbi-stocker, my restock-alert extension: native ES
 modules, no build step, brand tokens, browser-based test harness.
 
 ## Install (unpacked)
 
 1. Open `chrome://extensions`, enable **Developer mode** (top-right).
-2. Click **Load unpacked**, select `c:\wamp64\www\tab-media-reaper`.
+2. Click **Load unpacked** and select this repo's folder.
 3. Pin the toolbar icon via the puzzle-piece menu.
 
 ## Use
